@@ -1,0 +1,142 @@
+using System;
+using System.Data;
+using System.Configuration;
+using System.Collections;
+using System.Web;
+using System.Web.Security;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Web.UI.WebControls.WebParts;
+using System.Web.UI.HtmlControls;
+using System.Data.SqlClient;
+public partial class online_applicable_candidates : System.Web.UI.Page
+{
+SqlCommand cmd;
+SqlConnection cn;
+SqlDataAdapter da;
+DataSet ds;
+DataTable dt;
+protected void Page_Load(object sender, EventArgs e)
+{
+cn = new SqlConnection(@"Data
+Source=.\SQLEXPRESS;AttachDbFilename=|DataDirectory|\hrmsdatabase.mdf;Integr
+ated Security=True;User Instance=True");
+if (!IsPostBack)
+{
+da = new SqlDataAdapter("select app_refno, t.name, ts.test_id, ts.type,
+ts.passingscore from Test as ts, Testsuite as t, Applicant_master as a where
+a.desig_id = t.desig_id and t.testsuite_id = ts.testsuite_id and app_refno="+
+Session["OnlineTest"].ToString(), cn);
+ds = new DataSet();
+da.Fill(ds);
+foreach (DataRow dr in ds.Tables[0].Rows)
+{
+lblapp_refno.Text = (dr["app_refno"].ToString());
+lbltestname.Text = dr["name"].ToString();
+lbltestid.Text = dr["test_id"].ToString();
+lbltesttype.Text = dr["type"].ToString();
+lblpassingscore.Text = dr["passingscore"].ToString();
+}
+if (lbltesttype.Text == "Offline")
+{
+Implementation Planning and Details
+Computer Department Page 54
+btnsubmit.Visible = false;
+btncancel.Visible = false;
+lbltesttype1.Visible = false;
+lbltestsuitename1.Visible = false;
+lblqbname1.Visible = false;
+lbltestname.Visible = false;
+lbltesttype.Visible = false;
+lblqbname.Visible = false;
+lbltestid.Visible = false;
+lbltestid1.Visible = false;
+}
+if (lbltesttype.Text == "Online")
+{
+da = new SqlDataAdapter("select q.name from Questionbank as q, test as
+t, Testsuite as ts, Applicant_master as a" +
+" where a.desig_id = ts.desig_id and ts.testsuite_id = t.testsuite_id and
+t.qb_id = q.qb_id and app_refno=" + Session["OnlineTest"].ToString(), cn);
+ds = new DataSet();
+da.Fill(ds);
+foreach (DataRow dr in ds.Tables[0].Rows)
+{
+lblqbname.Text = dr["name"].ToString();
+}
+cn.Open();
+da = new SqlDataAdapter(" select manage_id, questionno, m.description,
+ans1, ans2, ans3, ans4, correctans from Managequestion as m," +
+" Applicant_master as a, Questionbank, Test, testsuite as t where
+a.desig_id = t.desig_id and t.testsuite_id = test.testsuite_id and test.qb_id = m.qb_id
+and m.qb_id = Questionbank.qb_id and a.app_refno = " + Session["OnlineTest"],
+cn);
+ds = new DataSet();
+da.Fill(ds, "Managequestion");
+dt = ds.Tables[0];
+grdvopen.DataSource = dt;
+grdvopen.DataBind();
+foreach (GridViewRow gr in grdvopen.Rows)
+{
+// string User_Code = ((Label)gr.Cells[1].FindControl("Label1")).Text;
+string Questionno =
+((Label)gr.Cells[0].FindControl("lblquestionid")).Text;
+foreach (DataRow r in ds.Tables[0].Rows)
+{
+if (r["questionno"].ToString() == Questionno)
+{
+((RadioButtonList)gr.Cells[2].FindControl("rbList1")).Items.Add(r["ans1"].ToString());
+((RadioButtonList)gr.Cells[2].FindControl("rbList1")).Items.Add(r["ans2"].ToString());
+((RadioButtonList)gr.Cells[2].FindControl("rbList1")).Items.Add(r["ans3"].ToString());
+((RadioButtonList)gr.Cells[2].FindControl("rbList1")).Items.Add(r["ans4"].ToString());
+break;
+Implementation Planning and Details
+Computer Department Page 55
+}
+}
+}
+cn.Close();
+}
+else
+{
+lblError.Text = " Candidate is not Applicable for Online Test ";
+}
+}
+}
+protected void btnsubmit_Click(object sender, EventArgs e)
+{
+cn.Open();
+int testScore = 0;
+foreach (GridViewRow row in grdvopen.Rows)
+{
+RadioButtonList rbList =
+(RadioButtonList)row.Cells[2].FindControl("rbList1");
+HiddenField hdnCorAns =
+((HiddenField)row.Cells[0].FindControl("hdnCorAns"));
+int sAns = rbList.SelectedIndex + 1;
+if (Convert.ToString(hdnCorAns.Value) == Convert.ToString(sAns))
+{
+testScore++;
+}
+}
+if (Convert.ToInt16(testScore) >= Convert.ToInt16(lblpassingscore.Text))
+{
+lblResult.Text = "Pass";
+}
+else
+{
+lblResult.Text = "Fail";
+}
+string mQuery = "insert into Candidate_test_details (app_refno, test_id,
+dateofapplied, testscore,result) values (" +
+lblapp_refno.Text + ", " + lbltestid.Text + ", '" + DateTime.Now + "',
+" + testScore.ToString() + ", '"+ lblResult.Text +"')";
+cmd = new SqlCommand(mQuery, cn);
+cmd.ExecuteNonQuery();
+cn.Close();
+}
+protected void btncancel_Click(object sender, EventArgs e)
+{
+Response.Redirect("~/Home.aspx");
+}
+}
